@@ -1,0 +1,113 @@
+---
+title: "Week 9 Discussion"
+author: "Ritvik Kharkar"
+date: "12/1/2020"
+output: pdf_document
+---
+
+```{r}
+library(ggplot2)
+
+#SVM
+library(e1071)
+```
+
+# Generate Data According to Complex Polynomial
+
+```{r}
+generate_data <- function(n)
+{
+  coefs = c(-7.1, 2.02, 5.01, 0.97)
+  + 0.1*(runif(4) - .5)
+  x1_vals = -5 + 6.5*runif(n)
+  y1_vals = coefs[1] + coefs[2]*x1_vals + coefs[3]*x1_vals^2 + coefs[4]*x1_vals^3 + 10*(runif(n)-.2)
+  
+  x2_vals = -5 + 6.5*runif(n)
+  y2_vals =  coefs[1] + coefs[2]*x2_vals + coefs[3]*x2_vals^2 + coefs[4]*x2_vals^3 - 10*(runif(n)-.2)
+  
+  D = as.data.frame(rbind(cbind(x1_vals, y1_vals), cbind(x2_vals, y2_vals)))
+  D = as.data.frame(scale(D))
+  D$label = 0
+  D$label[(n+1):(2*n)] = 1
+  D$label = as.factor(D$label)
+  colnames(D) = c("x1", "x2", "label")
+  
+  return(D)
+}
+
+D_train = generate_data(500)
+ggplot(D_train, aes(x1, x2, color=label)) + geom_point() + ggtitle('Training Data')
+
+D_test = generate_data(500)
+ggplot(D_test, aes(x1, x2, color=label)) + geom_point() + ggtitle('Testing Data')
+```
+
+# Test Several Kernels
+
+```{r}
+decision_grid = expand.grid(x1=seq(-2,2,.1),x2=seq(-3,3,.1))
+
+for (k in c("linear", "polynomial", "radial", "sigmoid"))
+{
+  svc_model = svm(label~., data = D_train, kernel=k)
+  preds = predict(svc_model, D_test)
+  acc = mean(preds == D_test$label)
+
+  D_test_k = D_test
+  D_test_k$pred = preds
+  
+  labels = predict(svc_model, decision_grid)
+  decision_grid$pred = labels
+  p = ggplot(D_test_k, aes(x1, x2, color=pred)) + geom_point() + geom_point(data=decision_grid, pch=20, cex=0.3) + ggtitle(paste(k,'kernel - Accuracy=',acc))
+  print(p)
+  
+}
+```
+
+# Effect of Gamma on Result
+
+```{r}
+decision_grid = expand.grid(x1=seq(-2,2,.1),x2=seq(-3,3,.1))
+
+for (g in c(0.01,0.1,1,10,100,1000))
+{
+  svc_model = svm(label~., data = D_train, kernel='radial', gamma=g)
+  preds = predict(svc_model, D_test)
+  acc = mean(preds == D_test$label)
+
+  D_test_k = D_test
+  D_test_k$pred = preds
+  
+  labels = predict(svc_model, decision_grid)
+  decision_grid$pred = labels
+  p = ggplot(D_test_k, aes(x1, x2, color=pred)) + geom_point() + geom_point(data=decision_grid, pch=20, cex=0.3) + ggtitle(paste('Gamma=',g,' Accuracy=',acc))
+  print(p)
+  
+}
+```
+
+## CYU: Talk about changing gamma in terms of Bias Variance Tradeoff
+
+# Effect of Cost on Result
+
+```{r}
+decision_grid = expand.grid(x1=seq(-2,2,.1),x2=seq(-3,3,.1))
+
+for (c in c(0.01,1,100,10000,1000000))
+{
+  svc_model = svm(label~., data = D_train, kernel='radial', gamma=1, cost=c)
+  preds = predict(svc_model, D_test)
+  acc = mean(preds == D_test$label)
+
+  D_test_k = D_test
+  D_test_k$pred = preds
+  
+  labels = predict(svc_model, decision_grid)
+  decision_grid$pred = labels
+  p = ggplot(D_test_k, aes(x1, x2, color=pred)) + geom_point() + geom_point(data=decision_grid, pch=20, cex=0.3) + ggtitle(paste('Cost=',c,' Accuracy=',acc))
+  print(p)
+  
+}
+```
+
+## CYU: Talk about changing cost in terms of Bias Variance Tradeoff
